@@ -241,22 +241,22 @@ Contains
 
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0
+                    amp = 1.0d0*core_mask
                     Call add_implicit_term(weq,wvar, 0, amp,lp,static = .true.)
                 Endif
 
                 !amp = H_Laplacian        ! Diffusion
-                amp = H_Laplacian*nu*diff_factor
+                amp = H_Laplacian*nu*diff_factor*core_mask
                 Call add_implicit_term(weq,wvar, 0, amp,lp)
                 !amp = 1.0d0
-                amp = nu*diff_factor
+                amp = nu*diff_factor*core_mask
                 Call add_implicit_term(weq,wvar, 2, amp,lp)
 
                 ! These two diffusion bits are different
                 ! depending on variation of rho and nu
-                amp = W_Diffusion_Coefs_0*diff_factor
+                amp = W_Diffusion_Coefs_0*diff_factor*core_mask
                 Call add_implicit_term(weq,wvar, 0, amp,lp)
-                amp = W_Diffusion_Coefs_1*diff_factor
+                amp = W_Diffusion_Coefs_1*diff_factor*core_mask
                 Call add_implicit_term(weq,wvar, 1, amp,lp)
 
                 !==================================================
@@ -264,35 +264,35 @@ Contains
 
                 ! Pressure
                 !amp = -(1.0d0)/Ek*ref%density
-                amp = ref%pressure_dwdr_term
+                amp = ref%pressure_dwdr_term*core_mask
                 Call add_implicit_term(peq,pvar, 0, amp,lp)
 
                 ! W
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0
+                    amp = 1.0d0*core_mask
                     Call add_implicit_term(peq,wvar, 1, amp,lp, static = .true.)
                 Endif
 
                 !amp =-H_Laplacian*2.0d0/radius
-                amp =-nu*H_Laplacian*2.0d0/radius*diff_factor
+                amp =-nu*H_Laplacian*2.0d0/radius*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 0, amp,lp)
                 !amp = H_Laplacian
-                amp = H_Laplacian*nu*diff_factor
+                amp = H_Laplacian*nu*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 1, amp,lp)
                 !amp = 1.0d0
-                amp = nu*diff_factor
+                amp = nu*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 3, amp,lp)
 
 
                 ! Again, these two bits depend on radial variation of rho and nu
-                amp = dW_Diffusion_Coefs_0*H_Laplacian*diff_factor
+                amp = dW_Diffusion_Coefs_0*H_Laplacian*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 0, amp,lp)
 
-                amp = dW_Diffusion_Coefs_1*diff_factor
+                amp = dW_Diffusion_Coefs_1*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 1, amp,lp)
 
-                amp = dW_Diffusion_Coefs_2*diff_factor
+                amp = dW_Diffusion_Coefs_2*diff_factor*core_mask
                 Call add_implicit_term(peq,wvar, 2, amp,lp)
                 !====================================================
                 !            Temperature Equation
@@ -327,7 +327,7 @@ Contains
 
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0
+                    amp = 1.0d0*core_mask
                     Call add_implicit_term(zeq,zvar, 0, amp,lp, static = .true.)    ! Time-independent piece
                 Endif
 
