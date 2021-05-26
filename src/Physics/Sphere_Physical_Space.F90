@@ -128,6 +128,9 @@ Contains
             Call Compute_EMF()
         Endif
 
+        If (solid_inner_core) Call Adjust_Nonlinear_SIC()
+
+
         Call StopWatch(nl_time)%increment()
         !...........................
 
@@ -147,6 +150,26 @@ Contains
         Call wsp%reform()    ! Move to p2b
         Call StopWatch(rtranspose_time)%increment()
     End Subroutine Physical_Space
+
+    Subroutine Adjust_Nonlinear_SIC()
+        Implicit None
+        Integer :: t, r,k        
+        
+        !$OMP PARALLEL DO PRIVATE(t,r,k)
+        Do t = my_theta%min, my_theta%max
+            Do r = my_r%min, my_r%max
+                If (r .ge. core_index) Then
+                    Do k =1, n_phi
+                        wsp%p3b(k,r,t,:) = Zero
+                    Enddo
+                Endif
+            Enddo
+        Enddo
+        !$OMP END PARALLEL DO
+        
+        
+    End Subroutine Adjust_Nonlinear_SIC
+
 
     Subroutine Compute_dvtheta_by_dtheta()
         Implicit None

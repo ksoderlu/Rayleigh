@@ -86,6 +86,11 @@ Module ProblemSize
     Logical :: grid_error = .false.
 
 
+    !////////////////////////////////////////////////////////////////
+    ! Solid Inner Core-related Variables
+    Integer :: core_index = 0
+
+
     Namelist /ProblemSize_Namelist/ n_r,n_theta, nprow, npcol,rmin,rmax,npout, &
             &  precise_bounds,grid_type, l_max, n_l, &
             &  aspect_ratio, shell_depth, ncheby, domain_bounds, dealias_by, &
