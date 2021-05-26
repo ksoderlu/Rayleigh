@@ -165,13 +165,16 @@ Contains
     Subroutine Load_Linear_Coefficients()
         Implicit None
 
-        Real*8, Allocatable :: H_Laplacian(:), amp(:)
+        Real*8, Allocatable :: H_Laplacian(:), amp(:), core_mask(:)
         Integer :: l, lp
         Real*8 :: diff_factor,ell_term
         !rmin_norm
         diff_factor = 1.0d0 ! hyperdiffusion factor (if desired, 1.0d0 is equivalent to no hyperdiffusion)
         Allocate(amp(1:N_R))
         Allocate(H_Laplacian(1:N_R))
+        Allocate(core_mask(1:N_R))
+        core_mask = One
+        If (solid_inner_core) core_mask(core_index:N_R) = Zero
         Do lp = 1, my_nl_lm
             If (bandsolve) Call DeAllocate_LHS(lp)
             Call Allocate_LHS(lp)
@@ -224,13 +227,14 @@ Contains
 
 
                 ! Temperature
-                amp = -ref%Buoyancy_Coeff/H_Laplacian
+                amp = -ref%Buoyancy_Coeff/H_Laplacian*core_mask
+
                 Call add_implicit_term(weq, tvar, 0, amp,lp)            ! Gravity
 
 
                 ! Pressure
                 !amp = 1.0d0/(Ek*H_Laplacian)*ref%density        ! dPdr
-                amp = ref%dpdr_W_term/H_Laplacian
+                amp = ref%dpdr_W_term/H_Laplacian*core_mask
                 Call add_implicit_term(weq,pvar, 1, amp,lp)
 
                 ! W
@@ -395,6 +399,7 @@ Contains
         Enddo
         DeAllocate(amp)
         DeAllocate(H_Laplacian)
+        DeAllocate(Core_Mask)
     End Subroutine Load_Linear_Coefficients
 
     Subroutine Set_Boundary_Conditions(mode_ind)
