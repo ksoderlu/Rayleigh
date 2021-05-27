@@ -881,6 +881,85 @@ Module Linear_Solve
         Call Cheby_Continuity(row,rowblock,colblock,dorder,mpointer)
 
     End Subroutine FEContinuity
+    
+   Subroutine FESetBC( mode, rind, eqind, varind, amp, dorder, &
+                      sub_index, clear_row)
+        Implicit None
+        Integer, Intent(In) :: eqind, varind, mode, rind, dorder, sub_index
+        Real*8, Intent(In) :: amp
+        Logical, Intent(In), Optional :: clear_row
+        real*8, Pointer, Dimension(:,:) :: mpointer
+        Integer :: col, ind, n, offleft, offright, r, roff, row
+        
+        mpointer => equation_set(mode,eqind)%mpointer
+        col = equation_set(mode,eqind)%colblock(varind)
+        row = equation_set(mode,eqind)%rowblock
+
+        If (sub_index .eq. 1) Then
+            roff = 0  ! row offset for this domain
+        Else
+            roff = SUM(cpgrid%npoly(1:sub_index-1))
+        Endif
+        offleft = roff                 !Column offset for this domain        
+        
+        !Decide whether we are replacing rows at
+        !either the top or bottom of each domain
+        ! (rind =1 means top;  rind != 1 means bottom)
+        r = roff+cpgrid%npoly(sub_index)
+        if (rind .eq. 1) r = roff+1    
+
+        If (present(clear_row)) Then
+            If (clear_row) Then
+                mpointer(r+row,:) = 0.0d0
+            Endif
+        Endif
+        
+        Do n = 1, cpgrid%rda(sub_index) -1     ! De-Alias at boundaries (single rows are really just for boundaries)
+            mpointer(row+r,col+n+offleft) = mpointer(row+r,col+n+offleft) &
+                &  + amp*cpgrid%dcheby(sub_index)%data(ind,n,dorder)
+        Enddo
+
+    End Subroutine FESetBC
+
+
+    Subroutine Cheby_FE_SetBC(rind,row,col,dorder,mpointer, sub_index,amp) !, clear_row, boundary)
+        Implicit None
+        Integer, Intent(In) :: rind,row, col, dorder, sub_index
+        Real*8, Intent(In) :: amp
+        Integer :: n, offleft, offright, r, roff
+        Integer :: hh, ind, nsub
+        real*8, Pointer, Dimension(:,:), Intent(InOut) :: mpointer
+
+        !! NEED SUB_INDEX
+
+        nsub = cpgrid%domain_count
+        If (sub_index .eq. 1) Then
+            roff = 0             ! row offset for this domain
+        Else
+            roff = SUM(cpgrid%npoly(1:sub_index-1))
+        Endif
+        !Decide whether we are replacing rows at
+        !either the top or bottom of each domain
+        ! (r =1 means top;  r != 1 means bottom)
+        r = roff+cpgrid%npoly(sub_index)
+        if (rind .eq. 1) r = roff+1    
+
+        offleft = roff                 !Column offset for this domain
+        
+        hh = nsub
+        mpointer(r+row,:) = 0.0d0
+
+        Do n = 1, cpgrid%rda(sub_index) -1     ! De-Alias at boundaries (single rows are really just for boundaries)
+            mpointer(row+r,col+n+offleft) = mpointer(row+r,col+n+offleft) &
+                &  + amp*cpgrid%dcheby(hh)%data(ind,n,dorder)
+        Enddo
+
+    End Subroutine Cheby_FE_SetBC
+
+
+
+    
+    
     Subroutine Clear_Row(eqind, mode,row)
         Implicit None
         Integer, Intent(In) :: eqind, mode, row
@@ -1437,6 +1516,7 @@ Module Linear_Solve
 
 
     End Subroutine Cheby_Continuity
+
 
 
     Subroutine Load_Interior_Rows_Cheby(row,col,amp,dorder,mpointer)

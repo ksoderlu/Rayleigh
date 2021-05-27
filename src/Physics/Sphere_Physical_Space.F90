@@ -161,6 +161,7 @@ Contains
                 If (r .ge. core_index) Then
                     Do k =1, n_phi
                         wsp%p3b(k,r,t,:) = Zero
+                        !wsp%p3b(k,my_r%min:my_r%max,t,f) = wsp%p3b(k,my_r%min:my_r%max,t,f)*core_mask(my_r%min:my_r%max)
                     Enddo
                 Endif
             Enddo

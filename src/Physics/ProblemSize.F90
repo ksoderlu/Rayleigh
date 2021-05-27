@@ -22,7 +22,7 @@ Module ProblemSize
     Use Parallel_Framework, Only : pfi, Load_Config, Spherical
     Use Legendre_Polynomials, Only : Initialize_Legendre,coloc
     Use Spectral_Derivatives, Only : Initialize_Angular_Derivatives
-    Use Controls, Only : Chebyshev, use_parity, multi_run_mode, run_cpus, my_path, outputs_per_row
+    Use Controls, Only : Chebyshev, use_parity, multi_run_mode, run_cpus, my_path, outputs_per_row, solid_inner_core
     Use Chebyshev_Polynomials, Only : Cheby_Grid
     Use Math_Constants
     Use BufferedOutput
@@ -88,7 +88,7 @@ Module ProblemSize
 
     !////////////////////////////////////////////////////////////////
     ! Solid Inner Core-related Variables
-    Integer :: core_index = 0
+    Integer :: core_index = 0, core_sub, core_next
 
 
     Namelist /ProblemSize_Namelist/ n_r,n_theta, nprow, npcol,rmin,rmax,npout, &
@@ -114,6 +114,14 @@ Contains
         Call Report_Grid_Parameters()     ! Print some grid-related info to the screen
         Call Initialize_Horizontal_Grid() ! Init theta-grid and Legendre transforms
         Call Initialize_Radial_Grid()     ! Init radial grid and Chebyshev transforms
+
+        If (solid_inner_core) Then
+            core_sub = gridcp%domain_count
+            core_next = core_sub-1
+            core_index = SUM(gridcp%n_x(1:core_next))
+        Endif
+
+
 
         If (my_rank .eq. 0) Then
             call stdout%print(" -- Grid initialized.")

@@ -241,7 +241,8 @@ Contains
 
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0*core_mask
+                    ! u_{t+1} = u_{t} + other terms (that we zero in core)
+                    amp = 1.0d0
                     Call add_implicit_term(weq,wvar, 0, amp,lp,static = .true.)
                 Endif
 
@@ -270,7 +271,7 @@ Contains
                 ! W
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0*core_mask
+                    amp = 1.0d0
                     Call add_implicit_term(peq,wvar, 1, amp,lp, static = .true.)
                 Endif
 
@@ -327,21 +328,21 @@ Contains
 
                 If (inertia) Then
                     ! (from u_{t+1} in CN method -- no dt factor)
-                    amp = 1.0d0*core_mask
+                    amp = 1.0d0
                     Call add_implicit_term(zeq,zvar, 0, amp,lp, static = .true.)    ! Time-independent piece
                 Endif
 
                 !amp = H_Laplacian
-                amp = H_Laplacian*nu*diff_factor
+                amp = H_Laplacian*nu*diff_factor*core_mask
                 Call add_implicit_term(zeq,zvar, 0, amp,lp)
                 !amp = 1.0d0
-                amp = nu
+                amp = nu*core_mask
                 Call add_implicit_term(zeq,zvar, 2, amp,lp)
 
                 ! Variation of rho and nu
-                amp = Z_Diffusion_Coefs_0*diff_factor
+                amp = Z_Diffusion_Coefs_0*diff_factor*core_mask
                 Call add_implicit_term(zeq,zvar, 0, amp,lp)
-                amp = Z_Diffusion_Coefs_1*diff_factor
+                amp = Z_Diffusion_Coefs_1*diff_factor*core_mask
                 Call add_implicit_term(zeq,zvar, 1, amp,lp)
                 If (magnetism) Then
                     !=========================================
@@ -410,7 +411,7 @@ Contains
         Implicit None
         Real*8 :: samp,one
         Integer, Intent(In) :: mode_ind
-        Integer :: l, r,lp
+        Integer :: l, r,lp, ri_top, ri_bottom
         one = 1.0d0
         lp = mode_ind
 
@@ -470,18 +471,27 @@ Contains
 
             ! "1" denotes linking at index 1, starting in domain 2
             ! "2" denotes linking at index npoly, starting in domain 1
+            !If (solid_inner_core) Then
+                ! Write new code
+                ! For now assume no slip
+                ! BC 1: W = 0
+                ! BC 2: Z = 0
+                ! 
+            !Else
             Call FEContinuity(peq,lp,pvar,2,0)   ! Pressure is continuous
             Call FEContinuity(peq,lp,wvar,1,2)          ! W'' is continuous
 
             Call FEContinuity(weq,lp,wvar,2,0)   ! W is continuous
             Call FEContinuity(weq,lp,wvar,1,1)          ! W' is continuous
 
+            Call FEContinuity(zeq,lp,zvar,2,0)   ! Z is continuous
+            Call FEContinuity(zeq,lp,zvar,1,1)          ! Z' is continuous
+            !Endif
+
             Call FEContinuity(teq,lp,tvar,2,0)   ! T/S is continuous
             Call FEContinuity(teq,lp,tvar,1,1)          ! T' / S' is continuous (for ell = 0)
 
 
-            Call FEContinuity(zeq,lp,zvar,2,0)   ! Z is continuous
-            Call FEContinuity(zeq,lp,zvar,1,1)          ! Z' is continuous
 
 
             !*******************************************************
@@ -567,6 +577,23 @@ Contains
             Call Load_BC(lp,r,weq,wvar,one,0)
 
 
+            If (solid_inner_core) Then
+                !Subroutine FESetBC( mode, rind, eqind, varind, amp, dorder &
+                !      sub_index, clear_row)
+                core_sub = 2   ! Subdomain corresponding to inner core
+                core_next =1   ! Subdomain next to inner core
+
+                ri_top = 1       ! Not really radial indices --
+                ri_bottom = 2    ! Just flags indicating if we want to modify top of bottom BC
+                
+                ! Impenetrable at bottom of domain next to core
+                ! Clear row needs to be set when adding first term to the BC
+                Call FESetBC(lp,ri_bottom,weq,wvar,one,0,core_next,clear_row = .true.)     
+                ! Impenetrable at top of core domain
+                Call FESetBC(lp,ri_top,weq,wvar,one,0,core_sub,clear_row = .true.) 
+            Endif
+
+
             If (no_slip_top) Then
                 r = 1
 
@@ -588,6 +615,17 @@ Contains
                 r = N_R
                 Call Load_BC(lp,r,peq,wvar,one,1)
                 Call Load_BC(lp,r,zeq,zvar,one,0)
+                If (solid_inner_core) Then
+                    ! Z is zero at bottom of domain next to core
+                    ! Clear row needs to be set when adding first term to the BC
+                    Call FESetBC(lp,ri_bottom,zeq,zvar,one,0,core_next,clear_row = .true.)     
+                    ! And at top of core domain
+                    Call FESetBC(lp,ri_top,zeq,zvar,one,0,core_sub,clear_row = .true.)
+                 
+                    ! dWdr is zero at both locations
+                     Call FESetBC(lp,ri_bottom,peq,wvar,one,1,core_next,clear_row = .true.)
+                     Call FESetBC(lp,ri_top   ,peq,wvar,one,1,core_sub ,clear_row = .true.)                                       
+                Endif
 
             Else
                 !stress_free_bottom
@@ -597,6 +635,28 @@ Contains
                 Call Load_BC(lp,r,peq,wvar,samp,1)
                 Call Load_BC(lp,r,zeq,zvar,one,1)
                 Call Load_BC(lp,r,zeq,zvar,samp,0)
+                
+                If (solid_inner_core) Then
+                    samp = -(2.0d0/radius(core_index)+ref%dlnrho(core_index))
+                    
+                    ! At the inner/outer core interface, we have that 
+                    !W'' + samp* W' = 0
+                    !Z'  + samp* Z  = 0
+                    
+                    Call FESetBC(lp,ri_bottom,zeq,zvar,one, 1,core_next,clear_row = .true.)   
+                    Call FESetBC(lp,ri_bottom,zeq,zvar,samp,0,core_next)        
+                    
+                    Call FESetBC(lp,ri_bottom,peq,wvar,one, 2,core_next,clear_row = .true.)   
+                    Call FESetBC(lp,ri_bottom,peq,wvar,samp,1,core_next)       
+                    
+                    Call FESetBC(lp,ri_top,zeq,zvar,one, 1,core_sub,clear_row = .true.)   
+                    Call FESetBC(lp,ri_top,zeq,zvar,samp,0,core_sub)        
+                    
+                    Call FESetBC(lp,ri_top,peq,wvar,one, 2,core_sub,clear_row = .true.)   
+                    Call FESetBC(lp,ri_top,peq,wvar,samp,1,core_sub)           
+                        
+                
+                Endif
             Endif
 
             If ((l .eq. 1) .and. (strict_L_Conservation) ) then
