@@ -104,7 +104,7 @@ Contains
         nfs(:) = numfields*2
         Call chktmp%init(field_count = nfs, config = 'p1a') ! Persistent throughout run
 
-        Allocate(boundary_mask(2, 2, my_num_lm, numfields))
+        Allocate(boundary_mask(2, 2, my_num_lm, numfields))  ! TODO: MUST NOT HARDCODE 4
         boundary_mask(:,:,:,:) = 0.0d0
 
         nfs(:) = 1

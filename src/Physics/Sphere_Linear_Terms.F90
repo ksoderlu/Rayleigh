@@ -443,6 +443,14 @@ Contains
             r = N_R
             If (fix_tvar_bottom) Then
                 Call Load_BC(lp,r,teq,tvar,one,0)    ! lower boundary
+                If (solid_inner_core .and. (.not. diffuse_inner_temperature)) Then
+                    ri_top = 1       ! Not really radial indices --
+                    ri_bottom = 2    ! Just flags indicating if we want to modify top of bottom BC
+                
+                    ! Fix temperature at inner core boundary
+                    Call FESetBC(lp,ri_bottom,teq,tvar,one,0,core_next,clear_row = .true.)     
+                    Call FESetBC(lp,ri_top,teq,tvar,one,0,core_sub,clear_row = .true.) 
+                Endif
             Endif
             If (fix_dtdr_bottom) Then
                 Call Load_BC(lp,r,teq,tvar,one,1)
@@ -511,6 +519,15 @@ Contains
             r = N_R
             If (fix_tvar_bottom) Then
                 Call Load_BC(lp,r,teq,tvar,one,0)    ! lower boundary
+                If (solid_inner_core .and. (.not. diffuse_inner_temperature)) Then
+                    ri_top = 1       ! Not really radial indices --
+                    ri_bottom = 2    ! Just flags indicating if we want to modify top of bottom BC
+                
+                    ! Fix temperature at inner core boundary
+                    Call FESetBC(lp,ri_bottom,teq,tvar,one,0,core_next,clear_row = .true.)     
+                    Call FESetBC(lp,ri_top,teq,tvar,one,0,core_sub,clear_row = .true.) 
+                Endif
+                
             Endif
             If (fix_dtdr_bottom) Then
                 Call Load_BC(lp,r,teq,tvar,one,1)
@@ -580,8 +597,6 @@ Contains
             If (solid_inner_core) Then
                 !Subroutine FESetBC( mode, rind, eqind, varind, amp, dorder &
                 !      sub_index, clear_row)
-                core_sub = 2   ! Subdomain corresponding to inner core
-                core_next =1   ! Subdomain next to inner core
 
                 ri_top = 1       ! Not really radial indices --
                 ri_bottom = 2    ! Just flags indicating if we want to modify top of bottom BC
@@ -732,7 +747,8 @@ Contains
         Integer :: uind, lind
         Integer :: real_ind, imag_ind
 
-        Call Apply_Boundary_Mask(bc_values)
+        !Call Apply_Boundary_Mask(bc_values)
+        Call Apply_Boundary_Mask_New(bc_values, num_bc_levels,bc_levels)
         Call Domain_Continuity()
 
     End Subroutine Enforce_Boundary_Conditions

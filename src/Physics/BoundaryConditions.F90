@@ -73,7 +73,9 @@ Module BoundaryConditions
     Logical :: use_checkpoint_bc_file = .false.
 
     Real*8, allocatable, dimension(:,:,:,:) :: bc_values  ! a 4-D array: (top/bottom, real/imag, my_num_lm, n_equations)
-
+    Integer, Allocatable :: bc_levels(:,:), num_bc_levels(:) ! boundary-condition rows and number of rows for each equation
+    Integer, Parameter :: max_bc_levels = 10  ! maximum number of boundary condition rows that can be specified   #TODO:  Revise comment#
+    
     Namelist /Boundary_Conditions_Namelist/ Fix_Tvar_Top, Fix_Tvar_Bottom, T_Bottom, T_Top, dTdr_top, dTdr_bottom, &
         fix_dtdr_bottom, fix_dtdr_top, fix_divrt_top, fix_divt_top, fix_divrfc_top, fix_divfc_top, &
         no_slip_boundaries, strict_L_Conservation, fix_poloidalfield_top, fix_poloidalfield_bottom, &
@@ -153,8 +155,26 @@ Contains
         Integer :: real_ind, imag_ind
 
 
-        allocate(bc_values(2, 2, my_num_lm, n_equations))
+
+        
+        Allocate(bc_levels(1:max_bc_levels,1:n_equations))
+        Allocate(num_bc_levels(1:n_equations))
+        bc_levels = 0
+        num_bc_levels(:) = 2
+
+        bc_levels(1,:) = 1
+        bc_levels(2,:) = N_R
+
+        If (solid_inner_core .and. (.not. diffuse_inner_temperature)) Then
+            num_bc_levels(teq) = 4
+            bc_levels(3,teq) = core_index
+            bc_levels(4,teq) = core_index+1
+        Endif
+
+
+        Allocate(bc_values(maxval(num_bc_levels), 2, my_num_lm, n_equations))
         bc_values = zero
+        
 
         uind = 1   ! Upper boundary in BC array
         lind = 2   ! Lower boundary in BC array
@@ -179,6 +199,10 @@ Contains
                 if (trim(T_bottom_file) .eq. '__nothing__') then
                   bc_val= T_bottom*sqrt(four_pi)
                   Call Set_BC(bc_val,0,0, teq,real_ind, lind)
+                  If (solid_inner_core .and. (.not. diffuse_inner_temperature )) Then
+                    Call Set_BC(bc_val,0,0, teq,real_ind, 3)
+                    Call Set_BC(bc_val,0,0,teq,real_ind,4)
+                  Endif
                 else
                   Call Set_BC_from_file(T_bottom_file, teq, lind)
                 end if

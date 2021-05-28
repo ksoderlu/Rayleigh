@@ -118,7 +118,8 @@ Contains
         If (solid_inner_core) Then
             core_sub = gridcp%domain_count
             core_next = core_sub-1
-            core_index = SUM(gridcp%n_x(1:core_next))
+            !Write(6,*)"Test: ", gridcp%npoly
+            core_index = SUM(gridcp%npoly(1:core_next))
         Endif
 
 

@@ -274,6 +274,15 @@ Contains
             Do i = 1, N_R
                 s_conductive(i) = prefactor*(1.0d0/r_outer-1.0d0/radius(i))
             Enddo
+            If (solid_inner_core .and. (.not. diffuse_inner_temperature)) Then
+                r_outer = radius(1)
+                r_inner = radius(core_index)
+                prefactor = r_outer*r_inner/(r_inner-r_outer)
+                Do i = 1,core_index
+                    s_conductive(i) = prefactor*(1.0d0/r_outer-1.0d0/radius(i))
+                Enddo
+                s_conductive(core_index+1:N_R) = 1.0d0
+            Endif
         Endif
 
         If (.not. rotation) Then

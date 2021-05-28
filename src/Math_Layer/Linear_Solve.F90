@@ -416,6 +416,27 @@ Module Linear_Solve
 
         Enddo
     End Subroutine Apply_Boundary_Mask
+
+    Subroutine Apply_Boundary_Mask_New(bcmask,n_bc_levels, bc_lev)
+        Implicit None
+        Integer :: i,j, k, eqind
+        Real*8, Intent(In) :: bcmask(:,:,:,:)
+        Integer, Intent(In) :: n_bc_levels(:), bc_lev(:,:)
+
+
+        Do k = 1, n_equations
+
+            If (equation_set(1,k)%primary) Then
+                Do j = 1, equation_set(1,k)%nlinks
+                    eqind = equation_set(1,k)%links(j)
+                    Do i = 1, n_bc_levels(eqind)
+                        equation_set(1,k)%RHS(bc_lev(i,eqind)+(j-1)*ndim1,:,:) = bcmask(i,:,:,eqind) ! Upper boundary
+                    Enddo
+                Enddo
+            Endif
+
+        Enddo
+    End Subroutine Apply_Boundary_Mask_New    
     
 
     !===========================
@@ -907,6 +928,9 @@ Module Linear_Solve
         ! (rind =1 means top;  rind != 1 means bottom)
         r = roff+cpgrid%npoly(sub_index)
         if (rind .eq. 1) r = roff+1    
+
+        ind = 1
+        if (rind .ne. 1) ind = cpgrid%npoly(sub_index)
 
         If (present(clear_row)) Then
             If (clear_row) Then
