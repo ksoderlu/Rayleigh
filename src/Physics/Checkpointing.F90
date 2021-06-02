@@ -670,7 +670,7 @@ Contains
     Subroutine Store_BC_Mask(bvals)
         Implicit None
         Real*8, Intent(In) :: bvals(:,:,:,:)
-        boundary_mask(:,:,:,:) = bvals(:,:,:,:)
+        boundary_mask(1:2,:,:,:) = bvals(1:2,:,:,:)
     End Subroutine Store_BC_Mask
 
     Subroutine Load_BC_Mask(bvals)

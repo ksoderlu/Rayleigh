@@ -114,7 +114,6 @@ Module PDE_Coefficients
     Real*8 :: Modified_Rayleigh_Number = 0.0d0
 
 
-
     Namelist /Reference_Namelist/ reference_type,poly_n, poly_Nrho, poly_mass,poly_rho_i, &
             & pressure_specific_heat, heating_type, luminosity, Angular_Velocity,     &
             & Rayleigh_Number, Ekman_Number, Prandtl_Number, Magnetic_Prandtl_Number, &
@@ -146,8 +145,12 @@ Module PDE_Coefficients
     Real*8  :: hyperdiffusion_beta = 0.0d0
     Real*8  :: hyperdiffusion_alpha = 1.0d0
 
+    Real*8 :: inner_core_beta = 1.0d0   ! inner_core_beta = eta_inner_core / eta_outer_core
+
+
     Namelist /Transport_Namelist/ nu_type, kappa_type, eta_type, nu_power, kappa_power, eta_power, &
-            & nu_top, kappa_top, eta_top, hyperdiffusion, hyperdiffusion_beta, hyperdiffusion_alpha
+            & nu_top, kappa_top, eta_top, hyperdiffusion, hyperdiffusion_beta, hyperdiffusion_alpha, &
+              inner_core_beta
 
 
 Contains
@@ -1112,6 +1115,9 @@ Contains
         If (magnetism) Then
 
             Call Initialize_Diffusivity(eta,dlneta,eta_top,eta_type,eta_power,7,7,13)
+            If (solid_inner_core) Then
+                eta(core_index+1:N_R) = eta(core_index+1:N_R)*inner_core_beta
+            Endif
             If (ohmic_heating) Then
                 Allocate(ohmic_heating_coeff(1:N_R))
                 ohmic_heating_coeff(1:N_R) = ref%ohmic_amp(1:N_R)*eta(1:N_R)

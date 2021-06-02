@@ -890,17 +890,29 @@ Module Linear_Solve
     End Subroutine Load_BC
 
 
-    Subroutine FEContinuity(eqind, mode, varind,row,dorder)
+    Subroutine FEContinuity(eqind, mode, varind,row,dorder,damps,clear_flag)
         Implicit None
         Integer, Intent(In) :: eqind, varind, mode, row, dorder
+        Real*8, Intent(In), Optional :: damps(:)
+        Logical, Intent(In), Optional :: clear_flag
         Integer :: colblock, rowblock
         real*8, Pointer, Dimension(:,:) :: mpointer
         mpointer => equation_set(mode,eqind)%mpointer
         colblock = equation_set(mode,eqind)%colblock(varind)
         rowblock = equation_set(mode,eqind)%rowblock
 
-        Call Cheby_Continuity(row,rowblock,colblock,dorder,mpointer)
 
+        If (present(damps)) Then
+            If (present(clear_flag)) THen
+                Call Cheby_Continuity(row,rowblock,colblock,dorder,mpointer, &
+                                      domain_amps = damps, no_clear = clear_flag)               
+            Else
+                Call Cheby_Continuity(row,rowblock,colblock,dorder,mpointer, &
+                                      domain_amps = damps)        
+            Endif
+        Else
+            Call Cheby_Continuity(row,rowblock,colblock,dorder,mpointer)
+        Endif
     End Subroutine FEContinuity
     
    Subroutine FESetBC( mode, rind, eqind, varind, amp, dorder, &
@@ -1496,15 +1508,17 @@ Module Linear_Solve
 
 
 !Matrix row-loading routines
-    Subroutine Cheby_Continuity(rind,row,col,dorder,mpointer) !, clear_row, boundary)
+    Subroutine Cheby_Continuity(rind,row,col,dorder,mpointer,domain_amps,no_clear) !, clear_row, boundary)
         Implicit None
         Integer, Intent(In) :: rind,row, col, dorder
+        Real*8, Intent(In), Optional :: domain_amps(:)
+        Logical, Intent(In), Optional :: no_clear
         Integer :: n, offleft, offright, r
         Integer :: hh, ind, nsub
         real*8, Pointer, Dimension(:,:), Intent(InOut) :: mpointer
-
+        Real*8 :: amp1, amp2
         nsub = cpgrid%domain_count
-
+        
 
         r = cpgrid%npoly(1)         !Decide whether we are replacing rows at
         if (rind .eq. 1) r = r+1    !either the top or bottom of each domain
@@ -1515,19 +1529,27 @@ Module Linear_Solve
         Do hh = 1, nsub -1
             !write(6,*)'rcheck 2: ', r
             ! Clear this row completely
-            mpointer(r+row,:) = 0.0d0
-
+            if (.not. present(no_clear)) Then 
+                mpointer(r+row,:) = 0.0d0
+            Endif
+            amp1 = 1.0d0
+            amp2 = 1.0d0
+            If (present(domain_amps)) Then
+                amp1 = domain_amps(hh)
+                amp2 = domain_amps(hh+1)
+            Endif
+        
             ! Load the left-side domain first (using its "upper" boundary values)
             ind = cpgrid%npoly(hh)
             Do n = 1, cpgrid%rda(hh) -1     ! De-Alias at boundaries (single rows are really just for boundaries)
                 mpointer(row+r,col+n+offleft) = mpointer(row+r,col+n+offleft) &
-                    &  + cpgrid%dcheby(hh)%data(ind,n,dorder)
+                    &  + cpgrid%dcheby(hh)%data(ind,n,dorder)*amp1
             Enddo
 
             !Load the right-side domain (using its "lower" boundary values)
             Do n = 1, cpgrid%rda(hh+1)-1
                 mpointer(row+r,col+n+offright) = mpointer(row+r,col+n+offright) &
-                    & - cpgrid%dcheby(hh+1)%data(1,n,dorder)
+                    & - cpgrid%dcheby(hh+1)%data(1,n,dorder)*amp2
             Enddo
 
             !Advance row and offset indices to next subdomain

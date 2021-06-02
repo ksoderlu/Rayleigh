@@ -179,13 +179,14 @@ Contains
             If (bandsolve) Call DeAllocate_LHS(lp)
             Call Allocate_LHS(lp)
             l = my_lm_lval(lp)
-
+           
             If (hyperdiffusion) Then
                 ell_term = ((l-1.0d0)/(l_max-1.0d0))**hyperdiffusion_beta
                 diff_factor = 1.0d0+hyperdiffusion_alpha*ell_term
             Endif
             H_Laplacian = - l_l_plus1(l) * OneOverRSquared
             If (l .eq. 0) Then
+                Write(6,*)"Core index is: ", core_index
                 !====================================================
                 !            Temperature Equation
                 ! T only
@@ -223,6 +224,14 @@ Contains
 
                 !==================================================
                 !                Radial Momentum Equation
+
+                If (solid_inner_core) Then
+                    ! Need to apply a constraint on pressure in the inner core region
+                    ! (basically P_new = P_old ( = zero)
+                    amp = 1.0d0-core_mask
+                    Call add_implicit_term(weq,pvar, 0, amp,lp,static = .true.)
+                    Call add_implicit_term(peq,pvar, 0, amp,lp,static = .true.)                    
+                Endif
 
 
 
@@ -410,6 +419,7 @@ Contains
         ! only.  Does not loop over lp.
         Implicit None
         Real*8 :: samp,one
+        Real*8, Allocatable :: beta_amp(:)
         Integer, Intent(In) :: mode_ind
         Integer :: l, r,lp, ri_top, ri_bottom
         one = 1.0d0
@@ -638,8 +648,8 @@ Contains
                     Call FESetBC(lp,ri_top,zeq,zvar,one,0,core_sub,clear_row = .true.)
                  
                     ! dWdr is zero at both locations
-                     Call FESetBC(lp,ri_bottom,peq,wvar,one,1,core_next,clear_row = .true.)
-                     Call FESetBC(lp,ri_top   ,peq,wvar,one,1,core_sub ,clear_row = .true.)                                       
+                    Call FESetBC(lp,ri_bottom,peq,wvar,one,1,core_next,clear_row = .true.)
+                    Call FESetBC(lp,ri_top   ,peq,wvar,one,1,core_sub ,clear_row = .true.)                                       
                 Endif
 
             Else
@@ -696,6 +706,21 @@ Contains
 
                 Call FEContinuity(ceq,lp,cvar,2,0)   ! C is continuous
                 Call FEContinuity(ceq,lp,cvar,1,1)          ! C' is continuous
+
+                If (solid_inner_core) Then
+                    ! Ensure that beta * dc/dr (inner core) = dc/dr (outer core)
+                    Allocate(beta_amp(1:gridcp%domain_count))
+                    beta_amp(:) = 1.0d0
+                    beta_amp(core_sub) = inner_core_beta
+                    Call FEContinuity(aeq,lp,avar,1,1,damps=beta_amp)          
+
+                    
+                    samp = 1.0d0/radius(core_index)**2
+                    beta_amp(:) = 0.0d0
+                    beta_amp(core_next:core_sub) = -samp    
+                    Call FEContinuity(ceq,lp,cvar,1,1,damps=beta_amp,clear_flag=.true.)
+                    DeAllocate(beta_amp)
+                Endif
 
 
                 ! Match to a potential field at top and bottom
@@ -793,6 +818,22 @@ Contains
                     if (l .ne. 0) equation_set(1,zeq)%RHS(      j,: , indx:indx+n_m) = 0.0d0
                 Enddo
 
+                ! Hack to fix temperature equation
+                ! TODO:  this needs to be made to work properly with
+                !        the boundary_mask array
+                If (solid_inner_core .and. (.not. diffuse_inner_temperature )) Then
+
+                    If (l .eq. 0) Then
+                        n = core_next
+                        j = gridcp%npoly(n)
+                        equation_set(1,weq)%RHS(2*N_R+j, : , indx:indx+n_m) = T_Bottom*sqrt(four_pi)
+                        
+                        j = gridcp%npoly(n)+1
+                        equation_set(1,weq)%RHS(2*N_R+j, : , indx:indx+n_m) = T_Bottom*sqrt(four_pi)
+
+
+                    Endif
+                Endif
                 If (Magnetism) Then
                     if (l .ne. 0) then
                         j = 0

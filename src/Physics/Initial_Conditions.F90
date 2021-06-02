@@ -34,7 +34,7 @@ Module Initial_Conditions
     Use PDE_Coefficients, Only : s_conductive, heating_type,ref, kappa, dlnkappa
     Use BoundaryConditions, Only : T_top, T_bottom, fix_tvar_Top, fix_tvar_bottom,&
          & fix_dtdr_top, fix_dtdr_bottom, dtdr_top, dtdr_bottom, &
-         & C10_bottom, C11_bottom, C1m1_bottom
+         & C10_bottom, C11_bottom, C1m1_bottom, br_bottom, dipole_tilt_degrees
     Use ClockInfo, Only : Euler_Step
     Use Linear_Solve
     Use Math_Utility
@@ -879,12 +879,24 @@ Contains
     Subroutine Dipole_Field_Init()
         Implicit None
 
-
+        Real*8 :: a, b, tilt_angle_radians
         Integer :: r, l, m, mp
         Integer :: fcount(3,2)
         type(SphericalBuffer) :: tempfield
         fcount(:,:) = 1
 
+        !///////////////////
+            tilt_angle_radians = pi/180.0*dipole_tilt_degrees
+            a = cos(tilt_angle_radians)*sqrt(4.0d0*Pi/3.0d0)
+            b = sin(tilt_angle_radians)*sqrt(8.0d0*Pi/3.0d0)
+            ! We use the bottom values to derive the top values
+            C10_bottom = a*Br_bottom/2.0d0*(radius(N_r)**2)
+
+            C11_bottom = b*Br_bottom/2.0d0*(radius(N_r)**2)
+
+            C1m1_bottom = 0.0d0 ! For the time being, we don't
+        ! worry about phasing in longitude.
+        !//////////////
 
         ! We put our temporary field in spectral space
         Call tempfield%init(field_count = fcount, config = 's2b')
